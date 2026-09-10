@@ -28,30 +28,7 @@ Built directly on published quantitative research:
 
 ## 🏗️ System Architecture
 
-```mermaid
-graph TD
-    User[Client Browser / Analyst] -->|HTTPS / REST| Gateway[FastAPI Gateway]
-    
-    subgraph Security & IAM Layer
-        Gateway --> Auth[JWT & RBAC Middleware]
-        Gateway --> AISec[AI Security Guardrails & Prompt Injection Defense]
-    end
-    
-    subgraph AI & Quant Core
-        Gateway --> Agent[Multi-Agent Copilot Engine]
-        Agent --> RAG[Vector RAG Knowledge Index]
-        Agent --> Tools[Tool Calling Suite]
-        Tools --> Quant[Portfolio VaR Engine]
-        Tools --> Kupiec[Kupiec Backtest Runner]
-        Tools --> PBT[Hypothesis PBT Engine]
-        Tools --> Scraper[Playwright / HTTP Data Ingestion]
-    end
-    
-    subgraph Storage & Infrastructure
-        Gateway --> Redis[(Redis Cache & Task Queue)]
-        Gateway --> DB[(Database Store & Audit Trail)]
-    end
-```
+![System Architecture](docs/architecture-diagram.png)
 
 ---
 
