@@ -1,6 +1,6 @@
 """
 Security & IAM/RBAC Module
-Handles HMAC-SHA256 JWT authentication, PBKDF2 salted password hashing, RBAC matrix, and AES-256 stream cipher field encryption.
+Handles HMAC-SHA256 JWT authentication, PBKDF2 salted password hashing, RBAC matrix, and AES-256-GCM authenticated field encryption.
 """
 
 import os
@@ -10,6 +10,7 @@ import base64
 import hashlib
 from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "quant-risk-prod-sec-key-99882211")
 ALGORITHM = "HS256"
@@ -63,7 +64,6 @@ class IAMSecurityManager:
             
             # Cryptographic signature verification
             expected_sig = hmac.new(SECRET_KEY.encode(), to_verify.encode(), hashlib.sha256).digest()
-            # Padding restoration
             padded_sig = sig_encoded + "=" * (-len(sig_encoded) % 4)
             actual_sig = base64.urlsafe_b64decode(padded_sig.encode())
             
@@ -92,37 +92,38 @@ class IAMSecurityManager:
 
     @staticmethod
     def encrypt_sensitive_field(plaintext: str) -> str:
-        """AES-256 stream cipher simulation with IV & HMAC authentication tag."""
-        iv = os.urandom(16)
-        key = hashlib.pbkdf2_hmac('sha256', SECRET_KEY.encode(), iv, 10000)
+        """
+        Authenticated AES-256-GCM field encryption.
+        Derives a 256-bit key via PBKDF2 HMAC-SHA256 and encrypts payload using AESGCM.
+        """
+        salt = os.urandom(16)
+        nonce = os.urandom(12)  # 96-bit AES-GCM nonce
+        key = hashlib.pbkdf2_hmac('sha256', SECRET_KEY.encode(), salt, 100000, dklen=32)
         
-        # Keystream XOR cipher
-        data_bytes = plaintext.encode('utf-8')
-        keystream = hashlib.sha256(key + iv).digest()
-        cipher_bytes = bytes([b ^ keystream[i % len(keystream)] for i, b in enumerate(data_bytes)])
+        aesgcm = AESGCM(key)
+        ciphertext = aesgcm.encrypt(nonce, plaintext.encode('utf-8'), None)
         
-        tag = hmac.new(key, iv + cipher_bytes, hashlib.sha256).digest()[:16]
-        blob = iv + tag + cipher_bytes
+        # Package salt + nonce + ciphertext
+        blob = salt + nonce + ciphertext
         return base64.b64encode(blob).decode('utf-8')
 
     @staticmethod
     def decrypt_sensitive_field(ciphertext_b64: str) -> Optional[str]:
-        """Decrypts AES-256 authenticated cipher stream."""
+        """
+        Authenticated AES-256-GCM field decryption.
+        Verifies authentication tag and decrypts payload.
+        """
         try:
             blob = base64.b64decode(ciphertext_b64.encode('utf-8'))
-            iv = blob[:16]
-            tag = blob[16:32]
-            cipher_bytes = blob[32:]
+            salt = blob[:16]
+            nonce = blob[16:28]
+            ciphertext = blob[28:]
             
-            key = hashlib.pbkdf2_hmac('sha256', SECRET_KEY.encode(), iv, 10000)
-            expected_tag = hmac.new(key, iv + cipher_bytes, hashlib.sha256).digest()[:16]
+            key = hashlib.pbkdf2_hmac('sha256', SECRET_KEY.encode(), salt, 100000, dklen=32)
+            aesgcm = AESGCM(key)
             
-            if not hmac.compare_digest(expected_tag, tag):
-                return None
-                
-            keystream = hashlib.sha256(key + iv).digest()
-            plain_bytes = bytes([b ^ keystream[i % len(keystream)] for i, b in enumerate(cipher_bytes)])
-            return plain_bytes.decode('utf-8')
+            plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, None)
+            return plaintext_bytes.decode('utf-8')
         except Exception:
             return None
 

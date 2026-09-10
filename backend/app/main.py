@@ -6,6 +6,7 @@ Integrates Quant Engine, Agentic AI, Playwright Scraper, Security Guardrails & I
 from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import time
 from typing import List, Dict, Any, Optional
 
 from app.quant.portfolio_var import analyze_portfolio_risk, calculate_portfolio_returns

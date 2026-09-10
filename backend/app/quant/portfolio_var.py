@@ -62,7 +62,7 @@ def analyze_portfolio_risk(
     portfolio_value: float = 100000.0,
     confidence_level: float = 0.95,
     time_horizon_days: int = 1,
-    data_source_description: str = "Real-Time Yahoo Finance API / Standard 250-Day Return Window"
+    data_source_description: str = "Seeded Student-t Fat-Tails Simulated Return Series (250 Days) with Live Scraping Capability"
 ) -> Dict[str, Any]:
     """
     Full quantitative portfolio risk calculation comparing Historical & Parametric VaR.
