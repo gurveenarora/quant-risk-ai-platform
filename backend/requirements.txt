@@ -12,3 +12,4 @@ playwright>=1.42.0
 scikit-learn>=1.4.0
 python-jose>=3.3.0
 passlib[bcrypt]>=1.7.4
+cryptography>=42.0.0

@@ -9,6 +9,8 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: backend
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
