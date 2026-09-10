@@ -43,7 +43,7 @@ def test_pbkdf2_salted_password_hashing():
     assert not security_manager.verify_password("WrongPassword!", hash_val, salt_hex)
 
 def test_aes_field_encryption_and_decryption():
-    """Verify AES-256 stream cipher encryption & authenticated decryption."""
+    """Verify AES-256-GCM AEAD field encryption & authenticated decryption."""
     plaintext = "SensitivePortfolioDataValue=$10,000,000"
     ciphertext = security_manager.encrypt_sensitive_field(plaintext)
     
