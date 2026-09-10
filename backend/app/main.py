@@ -93,22 +93,41 @@ def read_root():
             return f.read()
     return "<h1>QuantRisk Platform Engine Online</h1>"
 
+METRICS_STATE = {
+    "var_requests": 0,
+    "agent_requests": 0,
+    "total_requests": 0,
+    "start_timestamp": time.time()
+}
+
+@app.middleware("http")
+async def metrics_middleware(request, call_next):
+    METRICS_STATE["total_requests"] += 1
+    path = request.url.path
+    if path == "/api/quant/calculate-var":
+        METRICS_STATE["var_requests"] += 1
+    elif path == "/api/agent/chat":
+        METRICS_STATE["agent_requests"] += 1
+    response = await call_next(request)
+    return response
+
 @app.get("/healthz")
 def health_check():
     return {"status": "healthy", "database": "connected", "redis": "ready"}
 
 @app.get("/metrics")
 def prometheus_metrics():
-    """Prometheus monitoring metrics endpoint."""
+    """Prometheus monitoring metrics endpoint with real dynamic request instrumentation."""
+    uptime = round(time.time() - METRICS_STATE["start_timestamp"], 2)
     return (
         "# HELP http_requests_total Total number of HTTP requests\n"
         "# TYPE http_requests_total counter\n"
-        "http_requests_total{method=\"POST\",handler=\"/api/quant/calculate-var\"} 142\n"
-        "http_requests_total{method=\"POST\",handler=\"/api/agent/chat\"} 89\n"
-        "# HELP var_calculation_seconds Time spent processing VaR calculations\n"
-        "# TYPE var_calculation_seconds summary\n"
-        "var_calculation_seconds_sum 1.24\n"
-        "var_calculation_seconds_count 142\n"
+        f"http_requests_total{{method=\"POST\",handler=\"/api/quant/calculate-var\"}} {METRICS_STATE['var_requests']}\n"
+        f"http_requests_total{{method=\"POST\",handler=\"/api/agent/chat\"}} {METRICS_STATE['agent_requests']}\n"
+        f"http_requests_total{{method=\"ALL\",handler=\"all\"}} {METRICS_STATE['total_requests']}\n"
+        "# HELP process_uptime_seconds Process uptime in seconds\n"
+        "# TYPE process_uptime_seconds gauge\n"
+        f"process_uptime_seconds {uptime}\n"
     )
 
 @app.post("/api/auth/login")

@@ -4,6 +4,8 @@ Multi-Agent Agentic AI Engine with Tool Calling & Multi-Step Workflows
 
 import json
 import asyncio
+import numpy as np
+import pandas as pd
 from typing import Dict, Any, List
 
 from app.quant.portfolio_var import analyze_portfolio_risk, calculate_portfolio_returns

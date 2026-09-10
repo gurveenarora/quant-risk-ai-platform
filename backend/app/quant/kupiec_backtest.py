@@ -6,7 +6,7 @@ Based on published research:
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2
+from scipy.stats import chi2, norm
 from typing import Dict, Any, List
 
 def kupiec_pof_test(
@@ -19,7 +19,7 @@ def kupiec_pof_test(
     
     Parameters:
     - realized_returns: Array of daily portfolio returns
-    - var_thresholds: Array of VaR numbers (expressed as negative returns e.g. -0.02)
+    - var_thresholds: Array of VaR numbers (expressed as positive loss percentages e.g. 0.02)
     - confidence_level: Stated VaR confidence (e.g. 0.95)
     
     Returns statistical metrics: n_obs, exceptions, LR statistic, p-value, decision.
@@ -37,7 +37,6 @@ def kupiec_pof_test(
     p = 1.0 - confidence_level  # Expected failure rate (e.g., 0.05 for 95%)
     
     # An exception occurs when loss > VaR (i.e. realized return < -VaR_threshold)
-    # If var_arr is positive loss pct (0.02), then condition is return < -0.02
     exceptions = (returns_arr < -np.abs(var_arr)).astype(int)
     x = int(np.sum(exceptions))
     p_hat = x / n  # Observed failure rate
@@ -79,11 +78,12 @@ def run_rolling_kupiec_backtest(
     if len(portfolio_returns) <= window_size:
         raise ValueError(f"Need at least {window_size + 1} return observations for rolling backtest")
     
-    z_score = float(np.abs(chi2.ppf(1.0 - confidence_level, df=1)**0.5))
+    # Standard Normal PPF Z-score for Parametric VaR (e.g. 1.64485 for 95% confidence)
+    z_score = float(np.abs(norm.ppf(1.0 - confidence_level)))
     
-    # Rolling Parametric & Historical VaR
+    # Rolling Parametric & Historical VaR thresholds (as positive loss percentages)
     rolling_hist_var = portfolio_returns.rolling(window_size).apply(
-        lambda x: np.percentile(x, (1.0 - confidence_level) * 100)
+        lambda x: -np.percentile(x, (1.0 - confidence_level) * 100)
     )
     
     rolling_mu = portfolio_returns.rolling(window_size).mean()
@@ -100,6 +100,7 @@ def run_rolling_kupiec_backtest(
     return {
         "window_size": window_size,
         "confidence_level": confidence_level,
+        "z_score_used": round(z_score, 4),
         "historical_var_backtest": hist_kupiec,
         "parametric_var_backtest": param_kupiec,
         "recommendation": (
